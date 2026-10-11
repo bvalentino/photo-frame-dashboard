@@ -1,7 +1,9 @@
 package com.wesbos.homehq;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,8 +26,9 @@ import android.webkit.WebViewClient;
  */
 public class MainActivity extends Activity {
   static final String TAG = "HomeHQ";
-  static final String DEFAULT_URL = "https://home-dashboard.wesbos.workers.dev/";
+  static final String DEFAULT_URL = "https://www.google.com/";
   static final long EXIT_HOLD_MS = 1500;
+  static final long RETRY_MS = 5000;
   static final float EXIT_SLOP_PX = 60;
 
   private WebView web;
@@ -43,6 +46,12 @@ public class MainActivity extends Activity {
       Intent home = new Intent(Intent.ACTION_MAIN);
       home.addCategory(Intent.CATEGORY_HOME);
       home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      for (ResolveInfo ri : getPackageManager().queryIntentActivities(home, 0)) {
+        if (!ri.activityInfo.packageName.equals(getPackageName())) {
+          home.setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name));
+          break;
+        }
+      }
       startActivity(home);
       finish();
     }
@@ -61,7 +70,19 @@ public class MainActivity extends Activity {
     s.setDomStorageEnabled(true);
     s.setUseWideViewPort(true);
     s.setMediaPlaybackRequiresUserGesture(false);
-    web.setWebViewClient(new WebViewClient()); // keep navigation inside the kiosk
+    web.setWebViewClient(new WebViewClient() {
+      @Override
+      @SuppressWarnings("deprecation")
+      public void onReceivedError(final WebView view, int code, String desc, final String failingUrl) {
+        Log.w(TAG, "Load failed (" + desc + "), retrying in " + RETRY_MS + " ms");
+        handler.postDelayed(new Runnable() {
+          @Override
+          public void run() {
+            view.loadUrl(failingUrl);
+          }
+        }, RETRY_MS);
+      }
+    });
     setContentView(web);
 
     String url = getIntent().getDataString();
