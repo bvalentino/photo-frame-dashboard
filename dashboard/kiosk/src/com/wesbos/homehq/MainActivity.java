@@ -26,7 +26,7 @@ import android.webkit.WebViewClient;
  */
 public class MainActivity extends Activity {
   static final String TAG = "HomeHQ";
-  static final String DEFAULT_URL = "https://www.google.com/";
+  static final String DEFAULT_URL = "http://192.168.4.66:3000/";
   static final long EXIT_HOLD_MS = 1500;
   static final long RETRY_MS = 5000;
   static final float EXIT_SLOP_PX = 60;
