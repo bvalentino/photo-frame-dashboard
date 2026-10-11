@@ -7,10 +7,12 @@ import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import java.net.URI;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -70,6 +72,7 @@ public class MainActivity extends Activity {
     s.setDomStorageEnabled(true);
     s.setUseWideViewPort(true);
     s.setMediaPlaybackRequiresUserGesture(false);
+    web.addJavascriptInterface(new FrameBridge(), "frame");
     web.setWebViewClient(new WebViewClient() {
       @Override
       @SuppressWarnings("deprecation")
@@ -95,6 +98,31 @@ public class MainActivity extends Activity {
     applyDebugFlag(intent);
     String url = intent.getDataString();
     if (url != null) web.loadUrl(url);
+  }
+
+  /** Exposed to the dashboard page as window.frame. Only pages from the dashboard's own origin may call it. */
+  private class FrameBridge {
+    @JavascriptInterface
+    public void setBrightness(final int level) {
+      if (!sameOrigin(web.getUrl(), DEFAULT_URL)) return;
+      handler.post(new Runnable() {
+        @Override
+        public void run() {
+          WindowManager.LayoutParams lp = getWindow().getAttributes();
+          lp.screenBrightness = Math.max(0.01f, Math.min(1f, level / 255f));
+          getWindow().setAttributes(lp);
+        }
+      });
+    }
+  }
+
+  private static boolean sameOrigin(String a, String b) {
+    try {
+      URI x = URI.create(a), y = URI.create(b);
+      return x.getScheme().equals(y.getScheme()) && x.getHost().equals(y.getHost()) && x.getPort() == y.getPort();
+    } catch (RuntimeException e) {
+      return false;
+    }
   }
 
   /** Remote debugging only when explicitly requested; any normal launch turns it back off. */
